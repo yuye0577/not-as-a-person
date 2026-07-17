@@ -1,0 +1,1434 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🐾 体验小动物的一天</title>
+<style>
+  /* ========== 基础重置 ========== */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'Comic Sans MS', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    color: #5D4037;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #FFF3D6 0%, #FFE0A3 100%);
+    /* DESIGN.md 第9节：时间承担叙事节奏，昼夜光影用更慢更柔和的过渡 */
+    transition: background 2.4s ease;
+    position: relative;
+  }
+
+  /* 根据游戏内时段切换的背景主题（暖色调，营造治愈感） */
+  body.time-morning { background: linear-gradient(180deg, #FFF6DF 0%, #FFD98E 100%); }
+  body.time-day     { background: linear-gradient(180deg, #FFECB3 0%, #FFD54F 100%); }
+  body.time-evening { background: linear-gradient(180deg, #FFCC80 0%, #FF8A65 100%); }
+  body.time-night   { background: linear-gradient(180deg, #4E3B31 0%, #7B5B4A 100%); }
+
+  /* 夜晚的一点点星光，纯 CSS 光斑，呼应"昼夜光影渐变" */
+  body.time-night::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.8), transparent),
+      radial-gradient(2px 2px at 70% 20%, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1.5px 1.5px at 40% 60%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(2px 2px at 85% 65%, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1.5px 1.5px at 55% 15%, rgba(255,255,255,0.5), transparent);
+    animation: twinkle 4s ease-in-out infinite;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* ========== 手机卡片式容器 ========== */
+  .app-container {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    height: 100vh;
+    max-height: 820px;
+    background: #FFFDF7;
+    border-radius: 28px;
+    box-shadow: 0 20px 45px rgba(141, 110, 99, 0.35);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ========== 开始界面：选择动物 ========== */
+  #startScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    background: radial-gradient(circle at 50% 20%, #FFF6DF 0%, #FFE0A3 100%);
+    text-align: center;
+  }
+
+  #startScreen h1 {
+    font-size: 26px;
+    color: #E65100;
+    margin-bottom: 6px;
+  }
+
+  #startScreen p.subtitle {
+    font-size: 14px;
+    color: #A1887F;
+    margin-bottom: 28px;
+  }
+
+  .animal-choices {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .animal-card {
+    width: 108px;
+    padding: 16px 8px;
+    background: #FFFFFF;
+    border: 3px solid #FFE0A3;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+  }
+
+  .animal-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .animal-card.selected {
+    border-color: #FF9800;
+    box-shadow: 0 8px 18px rgba(255, 152, 0, 0.35);
+    transform: translateY(-6px);
+  }
+
+  .animal-card .emoji {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .animal-card .name {
+    font-size: 15px;
+    font-weight: bold;
+  }
+
+  .animal-card .trait {
+    display: block;
+    font-size: 10px;
+    color: #A1887F;
+    margin-top: 3px;
+    line-height: 1.3;
+  }
+
+  #startBtn {
+    padding: 14px 48px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(180deg, #FFB74D 0%, #FF9800 100%);
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(255, 152, 0, 0.4);
+    transition: opacity 0.2s ease, transform 0.15s ease;
+  }
+
+  #startBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  #startBtn:not(:disabled):active {
+    transform: scale(0.96);
+  }
+
+  /* ========== 身份转换过渡界面（UX Flow：身份转换动画） ========== */
+  #transitionScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 30px;
+    text-align: center;
+    background: radial-gradient(circle at 50% 30%, #FFF6DF 0%, #FFD98E 100%);
+    animation: fadeIn 1.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  #transitionText {
+    font-size: 15px;
+    line-height: 2;
+    color: #6D4C41;
+    white-space: pre-line;
+    margin-bottom: 30px;
+  }
+
+  #transitionAltText {
+    font-size: 14px;
+    line-height: 2;
+    color: #8D6E63;
+    white-space: pre-line;
+    margin-bottom: 22px;
+  }
+
+  .transition-actions {
+    display: flex;
+    gap: 12px;
+    opacity: 0;
+    animation: fadeIn 1s ease 1.4s forwards;
+  }
+
+  #wakeBtn {
+    padding: 12px 40px;
+    font-size: 14px;
+    color: #fff;
+    background: linear-gradient(180deg, #FFB74D 0%, #FF9800 100%);
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(255, 152, 0, 0.4);
+  }
+
+  #notWakeBtn {
+    padding: 12px 28px;
+    font-size: 13px;
+    color: #A1887F;
+    background: transparent;
+    border: 2px solid #E0D2C0;
+    border-radius: 30px;
+    cursor: pointer;
+  }
+
+  #notWakeBtn:active, #wakeBtn:active {
+    transform: scale(0.96);
+  }
+
+  /* ========== 游戏主界面 ========== */
+  #gameScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ---- 顶部时间栏（不再显示"第N天"，改为时段+时钟） ---- */
+  #topBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(4px);
+    font-size: 14px;
+    font-weight: bold;
+    color: #6D4C41;
+    z-index: 5;
+    transition: color 1s ease;
+  }
+
+  body.time-night #topBar { color: #FFE0B2; background: rgba(0,0,0,0.15); }
+
+  #topBar .title { font-size: 14px; }
+  #topBar .clock { font-size: 16px; letter-spacing: 1px; }
+  #topBar .phase { font-size: 12px; opacity: 0.75; }
+
+  /* ---- 动物展示区 ---- */
+  #stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 10px 20px;
+  }
+
+  #animalArea {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 动物身后的氛围光晕，代替直白的数值条来传达"感受"（DESIGN.md 第6/7节） */
+  #animalAura {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    z-index: 0;
+    transition: background 1.2s ease;
+    filter: blur(6px);
+  }
+
+  #animalAura.aura-calm {
+    background: radial-gradient(circle, rgba(255,213,79,0.55) 0%, rgba(255,213,79,0) 70%);
+  }
+  #animalAura.aura-curious {
+    background: radial-gradient(circle, rgba(129,212,250,0.55) 0%, rgba(129,212,250,0) 70%);
+    animation: auraPulse 1.6s ease-in-out infinite;
+  }
+  #animalAura.aura-tense {
+    background: radial-gradient(circle, rgba(239,83,80,0.5) 0%, rgba(239,83,80,0) 70%);
+    animation: auraShiver 0.5s ease-in-out infinite;
+  }
+
+  @keyframes auraPulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.12); opacity: 1; }
+  }
+  @keyframes auraShiver {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+  }
+
+  #animalEmoji {
+    position: relative;
+    z-index: 1;
+    font-size: 100px;
+    animation: float 3s ease-in-out infinite;
+    filter: drop-shadow(0 10px 14px rgba(0,0,0,0.15));
+  }
+
+  /* 情绪层驱动的浮动节奏：紧张时更急促，放松时更舒缓 */
+  #animalEmoji.mood-tense   { animation-duration: 1.2s; }
+  #animalEmoji.mood-curious { animation-duration: 2s; }
+  #animalEmoji.mood-calm    { animation-duration: 3.6s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+
+  /* 小小的情绪表情徽标，叠在动物角落，替代数字反馈 */
+  #expressionBadge {
+    position: absolute;
+    right: -6px;
+    bottom: 6px;
+    font-size: 28px;
+    z-index: 2;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.2));
+    transition: transform 0.3s ease;
+  }
+
+  /* 动物头顶的想法气泡 */
+  #thoughtBubble {
+    position: relative;
+    z-index: 2;
+    margin-bottom: 6px;
+    padding: 10px 16px;
+    max-width: 260px;
+    background: #FFFFFF;
+    border: 2px solid #FFE0A3;
+    border-radius: 16px;
+    font-size: 13px;
+    text-align: center;
+    color: #6D4C41;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  #thoughtBubble.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  #thoughtBubble::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px 8px 0 8px;
+    border-style: solid;
+    border-color: #FFE0A3 transparent transparent transparent;
+  }
+
+  /* ---- 状态氛围指示（弱化数值条：只用三个小圆点表达"份量"，不显示数字） ---- */
+  #stateDots {
+    display: flex;
+    gap: 18px;
+    margin-top: 30px;
+  }
+
+  .state-dot-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .state-dot-icon {
+    font-size: 13px;
+    opacity: 0.6;
+  }
+
+  .state-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #FFB74D;
+    opacity: 0.25;
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  /* ---- 底部剧情弹窗（事件弹窗） ---- */
+  #eventModal {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #FFFFFF;
+    border-top-left-radius: 26px;
+    border-top-right-radius: 26px;
+    box-shadow: 0 -8px 24px rgba(141, 110, 99, 0.25);
+    padding: 22px 22px 26px;
+    z-index: 20;
+    animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0.4; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+
+  #eventModal .event-desc {
+    font-size: 15px;
+    line-height: 1.8;
+    color: #6D4C41;
+    margin-bottom: 18px;
+  }
+
+  #eventOptions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .option-btn {
+    padding: 13px 16px;
+    font-size: 14px;
+    text-align: left;
+    background: #FFF3D6;
+    border: 2px solid #FFE0A3;
+    border-radius: 14px;
+    color: #5D4037;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .option-btn:hover { background: #FFE9C7; }
+  .option-btn:active { transform: scale(0.98); }
+
+  /* ---- 遮罩层（弹窗打开时轻微遮住舞台，聚焦弹窗） ---- */
+  #modalOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(93, 64, 55, 0.15);
+    z-index: 15;
+    animation: fadeIn 0.4s ease;
+  }
+
+  /* ========== Today's Memory 回忆界面 ========== */
+  #memoryScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 30px;
+    text-align: center;
+    background: linear-gradient(180deg, #4E3B31 0%, #7B5B4A 100%);
+    color: #FFF3D6;
+    animation: fadeIn 1.4s ease;
+  }
+
+  #memoryScreen .memory-lead {
+    font-size: 13px;
+    color: #FFD98E;
+    opacity: 0.85;
+    margin-bottom: 18px;
+  }
+
+  #memoryText {
+    font-size: 15px;
+    line-height: 2.1;
+    white-space: pre-line;
+    margin-bottom: 32px;
+  }
+
+  .memory-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .memory-btn {
+    padding: 11px 22px;
+    font-size: 13px;
+    color: #4E3B31;
+    background: #FFE0A3;
+    border: none;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .memory-btn:active { transform: scale(0.96); }
+
+  /* ---- Ending 余韵阶段：结局触发后，画面先渐渐静下来，再切到 Today's Memory，
+     不是立刻黑屏/弹窗（DESIGN.md 第13节 Ending Framework） ---- */
+  #gameScreen.ending-fade #animalAura,
+  #gameScreen.ending-fade #stateDots,
+  #gameScreen.ending-fade #expressionBadge {
+    transition: opacity 3s ease;
+    opacity: 0;
+  }
+  #gameScreen.ending-fade #animalEmoji,
+  #gameScreen.ending-fade #animalAura {
+    animation-play-state: paused;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ================= 开始界面 ================= -->
+  <div id="startScreen">
+    <h1>🐾 体验小动物的一天</h1>
+    <p class="subtitle">选择一种生命视角，成为它，度过今天。</p>
+
+    <div class="animal-choices">
+      <div class="animal-card" data-animal="cat">
+        <span class="emoji">🐱</span>
+        <span class="name">猫咪</span>
+        <span class="trait">谨慎，爱观察</span>
+      </div>
+      <div class="animal-card" data-animal="dog">
+        <span class="emoji">🐶</span>
+        <span class="name">小狗</span>
+        <span class="trait">依赖主人，容易兴奋</span>
+      </div>
+      <div class="animal-card" data-animal="rabbit">
+        <span class="emoji">🐰</span>
+        <span class="name">兔子</span>
+        <span class="trait">胆小，需要安全感</span>
+      </div>
+    </div>
+
+    <button id="startBtn" disabled>成为它</button>
+  </div>
+
+  <!-- ================= 身份转换过渡界面 ================= -->
+  <div id="transitionScreen" class="hidden">
+    <div id="transitionText"></div>
+    <div id="transitionAltText" class="hidden"></div>
+    <div class="transition-actions">
+      <button id="wakeBtn">睁开眼睛</button>
+      <button id="notWakeBtn">不睁开</button>
+    </div>
+  </div>
+
+  <!-- ================= 游戏主界面 ================= -->
+  <div id="gameScreen" class="hidden">
+
+    <!-- 顶部时间栏：不再显示天数，只保留时段与时钟，呼应"单日、有始有终" -->
+    <div id="topBar">
+      <span class="title">🐾 今天</span>
+      <span class="phase" id="phaseText">清晨</span>
+      <span class="clock" id="clockText">☀️ 06:00</span>
+    </div>
+
+    <!-- 动物展示区 + 氛围状态指示 -->
+    <div id="stage">
+      <div id="animalArea">
+        <div id="thoughtBubble"></div>
+        <div id="animalAura" class="aura-calm"></div>
+        <div id="animalEmoji">🐱<span id="expressionBadge"></span></div>
+      </div>
+
+      <!-- 状态氛围指示：只用小圆点的明暗表达"份量"，不显示具体数字 -->
+      <div id="stateDots">
+        <div class="state-dot-wrap">
+          <span class="state-dot-icon">🌙</span>
+          <span class="state-dot" id="dotPhysio"></span>
+        </div>
+        <div class="state-dot-wrap">
+          <span class="state-dot-icon">💭</span>
+          <span class="state-dot" id="dotEmotion"></span>
+        </div>
+        <div class="state-dot-wrap">
+          <span class="state-dot-icon">🤝</span>
+          <span class="state-dot" id="dotSocial"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗遮罩，仅在事件弹窗打开时显示 -->
+    <div id="modalOverlay" class="hidden"></div>
+
+    <!-- 底部剧情弹窗：五层事件层级里"感知层文案 + 选择层选项"的呈现位置 -->
+    <div id="eventModal" class="hidden">
+      <div class="event-desc" id="eventDesc"></div>
+      <div id="eventOptions"></div>
+    </div>
+
+  </div>
+
+  <!-- ================= Today's Memory 回忆界面 ================= -->
+  <div id="memoryScreen" class="hidden">
+    <div class="memory-lead" id="memoryLead">🌙 夜深了，困意渐渐涌了上来……</div>
+    <div id="memoryText"></div>
+    <div class="memory-actions">
+      <button class="memory-btn" id="replayBtn">再体验一天</button>
+      <button class="memory-btn" id="switchBtn">换一只动物</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 事件数据与调度逻辑拆分为独立文件（GameEngine → EventManager → events.js → Event Data），
+     不再把几十个事件写死在这个文件里；events.js 必须先于 event-manager.js 加载，
+     event-manager.js 必须先于下面的主脚本（GameEngine）加载 -->
+<script src="events.js"></script>
+<script src="event-manager.js"></script>
+
+<script>
+/* =========================================================================
+   《体验小动物的一天》—— GameEngine（V1，按 DESIGN.md 重构）
+
+   本文件只负责"游戏引擎"该管的事：状态系统、时间系统、UI 呈现、Today's
+   Memory 生成。事件*内容*和事件*筛选/抽样*已经拆到 events.js 和
+   event-manager.js 里，这里只通过 EventManager 提供的几个接口
+  （pickNext / findById / markUsed / resetForNewDay / rolloverDay /
+   rollWeather / getEmotionLabel）跟事件系统打交道，不直接接触事件数据，
+   也不重复实现任何筛选/加权逻辑——新增或删除事件只需要改 events.js。
+
+   与旧版（数值养成原型）的关键差异：
+   1. 不再是无限循环的多天经营，而是单日、有始有终的一次性体验：
+      清晨 07:00 苏醒 → 时间推进 → 跨过午夜直接结束，不跨天。
+   2. 状态从单一的 hunger/mood 两个数值，重构为三层九个子状态：
+      生理层(饥饿/疲劳/安全感) → 情绪层(好奇/放松/紧张) → 社会层(羁绊/信任/依赖)。
+      数值仍然存在于底层，但界面不再用数字/进度条呈现，改用动物表情、
+      氛围光晕、浮动节奏来传达"感受"。
+   3. 事件全部按"世界层→感知层→选择层→情绪层→反馈层"的事件层级呈现：
+      玩家只看到"感知层"文案（听见/闻到/看见），不会看到"吃饭事件"这类
+      人类概念标签；猫/狗/兔子对同一个世界事件，感知文案各不相同。
+   4. Today's Memory：一天结束后，从当天真实发生过的选择里挑几个片段、
+      结合情绪标签统计，拼成一段第一人称回忆，不打分、不分好坏结局。
+   ========================================================================= */
+
+/* ---------- 1. 动物配置（沿用原有结构，仅补充人设线索） ---------- */
+const ANIMALS = {
+  cat:    { name: '猫咪', emoji: '🐱' },
+  dog:    { name: '小狗', emoji: '🐶' },
+  rabbit: { name: '兔子', emoji: '🐰' }
+};
+
+/* 身份转换过渡文案：第一人称，帮助玩家从"人类视角"过渡到"动物视角" */
+const TRANSITION_TEXT = {
+  cat:    '你闭着眼睛，感觉阳光落在眼皮上，很暖。\n\n再睁开眼睛的时候，\n你已经是一只猫。',
+  dog:    '你趴在原地，尾巴无意识地拍打着地面。\n\n再睁开眼睛的时候，\n你已经是一只狗。',
+  rabbit: '你缩在一个安静的角落里，呼吸很轻很轻。\n\n再睁开眼睛的时候，\n你已经是一只兔子。'
+};
+
+/* "不睁开"文案：开场隐藏玩法，呼应 TRANSITION_TEXT 里每种动物各自的感官细节，
+   用"没有再……"这种克制的方式带出同一个意思，不出现任何直接的结局字样，
+   理解留给玩家（DESIGN.md 第12节 Show, Don't Explain / 第13节 Ending Framework） */
+const TRANSITION_ALT_TEXT = {
+  cat:    '你闭着眼睛，感觉阳光落在眼皮上，很暖。\n\n可这一次，眼睛没有再睁开。',
+  dog:    '你趴在原地，尾巴渐渐停了下来，不再拍打地面。\n\n这一次，没有再醒来。',
+  rabbit: '你缩在一个安静的角落里，呼吸越来越轻，直到完全听不见了。\n\n这一天，没有等到它醒来。'
+};
+
+/* "一天开始"文案：只在苏醒的那一刻出现一次，不放进下面循环出现的 idle 台词池，
+   避免"伸了个懒腰，准备迎接新的一天"这类只该出现一次的话反复重复 */
+const DAY_START_THOUGHTS = {
+  cat:    '伸了个懒腰，准备迎接新的一天~',
+  dog:    '抖了抖身体，精神抖擞地迎接新的一天~',
+  rabbit: '动了动鼻子，准备迎接新的一天~'
+};
+
+/* 没有事件发生时的"日常想法"文案池：按动物 + 适用时段（period）+ 适用心情
+   （mood：tense 紧张 / drowsy 困倦 / curious 好奇 / calm 平静 / any 不限）打了标签，
+   由 pickIdleNarrative() 结合"当前时间段 + 当前状态"挑选，且同一句一天最多出现一次，
+   让空闲时的想法不再是固定重复的一句话 */
+// 频率档位 → 抽样权重，写法照搬 event-manager.js 里 EVENT_RARITY_WEIGHT 的思路，
+// 对应 ANIMALS.md 的 Behaviour Rules（高频~70% / 中频~25% / 稀有~5%）
+const IDLE_FREQ_WEIGHT = { common: 70, occasional: 25, rare: 5 };
+
+const IDLE_NARRATIVE = {
+  cat: [
+    { text: '阳光照在地板上，好暖。', period: ['Noon'], mood: 'calm', freq: 'common' },
+    { text: '窗外飞过了一只小鸟。', period: ['Morning', 'Noon'], mood: 'curious', freq: 'common' },
+    { text: '尾巴轻轻摆了一下。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '耳朵动了动，好像听到了什么。', period: 'any', mood: 'curious', freq: 'common' },
+    { text: '阳光渐渐斜了，屋子里暗了一些。', period: ['Evening'], mood: 'calm', freq: 'common' },
+    { text: '眼皮有点沉，很想眯一会儿。', period: ['Noon', 'Night'], mood: 'drowsy', freq: 'common' },
+    { text: '空气里有点凉，缩紧了身体。', period: ['Night'], mood: 'tense', freq: 'occasional' },
+    { text: '盯着墙角看了好一会儿，什么都没有。', period: 'any', mood: 'curious', freq: 'occasional' },
+    { text: '换了个更舒服的姿势趴着。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '远处好像有点动静，竖起了耳朵。', period: 'any', mood: 'tense', freq: 'occasional' },
+    { text: '低头舔了舔爪子。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '打了个哈欠。', period: ['Night'], mood: 'drowsy', freq: 'common' },
+    // 新增：ANIMALS.md 猫的高频行为里点名了"踩奶"，之前的台词池里没有
+    { text: '小爪子一下一下地踩着，像是在揉面团。', period: 'any', mood: 'calm', freq: 'common' }
+  ],
+  dog: [
+    { text: '门外好像有人经过。', period: 'any', mood: 'curious', freq: 'occasional' },
+    { text: '好想出去跑一跑。', period: ['Morning', 'Noon'], mood: 'curious', freq: 'common' },
+    { text: '空气里有好多味道。', period: 'any', mood: 'curious', freq: 'common' },
+    { text: '尾巴不自觉地摇了摇。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '听到远处有点声音，竖起了耳朵。', period: 'any', mood: 'tense', freq: 'occasional' },
+    { text: '趴在地上，感觉很踏实。', period: ['Noon', 'Night'], mood: 'calm', freq: 'common' },
+    { text: '阳光晒得身上暖洋洋的。', period: ['Noon'], mood: 'calm', freq: 'common' },
+    { text: '有点困，但还是想再看看四周。', period: ['Night'], mood: 'drowsy', freq: 'occasional' },
+    { text: '闻了闻自己的爪子。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '夜色渐渐深了，屋子里很安静。', period: ['Night'], mood: 'calm', freq: 'common' },
+    { text: '甩了甩耳朵。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '打了个哈欠。', period: ['Night'], mood: 'drowsy', freq: 'common' },
+    // 新增：ANIMALS.md 狗的 Idle 清单里点名了"舔鼻子""转圈准备趴下"，之前都没有
+    { text: '舔了舔鼻子。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '原地转了两圈，然后趴了下来。', period: 'any', mood: 'calm', freq: 'common' }
+  ],
+  rabbit: [
+    { text: '四周很安静。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '耳朵轻轻动了动。', period: 'any', mood: 'curious', freq: 'common' },
+    { text: '这里应该很安全。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '鼻子一抽一抽的，在分辨气味。', period: 'any', mood: 'curious', freq: 'common' },
+    { text: '光线变了，心里有点在意。', period: ['Evening'], mood: 'tense', freq: 'occasional' },
+    { text: '缩在角落里，感觉踏实一些。', period: ['Night'], mood: 'calm', freq: 'common' },
+    { text: '远处有点响动，浑身绷紧了一下。', period: 'any', mood: 'tense', freq: 'occasional' },
+    { text: '阳光照过来，眯了眯眼睛。', period: ['Noon'], mood: 'calm', freq: 'common' },
+    { text: '有点犯困，耳朵慢慢垂了下来。', period: ['Night'], mood: 'drowsy', freq: 'common' },
+    { text: '静静地待着，没有挪动。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '低头理了理毛。', period: 'any', mood: 'calm', freq: 'common' },
+    { text: '换了个姿势，缩得更紧了一些。', period: ['Night'], mood: 'drowsy', freq: 'occasional' },
+    // 新增：ANIMALS.md 反复点名 binky 是兔子最典型的稀有时刻，之前完全没有实现；
+    // 按 Daily Rhythm 的设计意图，binky 应该出现在长时间放松之后，放在 Night 时段
+    { text: '试探性地探出头，看了看，又缩了回去。', period: 'any', mood: 'curious', freq: 'occasional' },
+    { text: '毫无预兆地，你整个身体腾空跳了一下，又扭了扭身子——不知道为什么，就是很想这么做。', period: ['Night'], mood: 'calm', freq: 'rare' }
+  ]
+};
+
+/* ---------- 2. 状态系统：三层结构（DESIGN.md 第6节） ---------- */
+/* 数值仍然是底层驱动逻辑的燃料，但不会作为进度条/数字直接展示给玩家 */
+let state = {
+  physio:  { hunger: 20, fatigue: 15, safety: 75 },   // 生理层：饥饿 / 疲劳 / 安全感
+  emotion: { curiosity: 25, calm: 70, tension: 10 },  // 情绪层：好奇 / 放松 / 紧张
+  social:  { bond: 25, trust: 40, dependence: 15 }    // 社会层：羁绊 / 信任 / 依赖
+};
+
+function clamp(v) {
+  return Math.max(0, Math.min(100, Math.round(v)));
+}
+
+// 把一份"变化量"叠加到三层状态上，并统一 clamp 到 0~100
+function applyDelta(delta) {
+  for (const layer in delta) {
+    for (const key in delta[layer]) {
+      state[layer][key] = clamp(state[layer][key] + delta[layer][key]);
+    }
+  }
+}
+
+/* ---------- 3. 事件数据已拆分到独立文件（不再写死在这里） ----------
+   EVENTS_LIBRARY / EVENT_RARITY_WEIGHT / EVENT_EMOTION_ZH 定义在 events.js；
+   筛选/加权/抽样逻辑封装在 event-manager.js 的 EventManager 里，通过
+   <script src="events.js"> 和 <script src="event-manager.js"> 提前加载，
+   GameEngine 只调用 EventManager 暴露的接口，不直接触碰事件数据本身。
+   ---------------------------------------------------------------- */
+/* ---------- 4.（原"固定闲置文案"已被 IDLE_NARRATIVE 取代，见上方） ---------- */
+
+/* ---------- 5. 时间系统 ----------
+   目标：整只动物的一天（07:00→跨过午夜结束）控制在现实约 10 分钟内玩完，
+   并且要让玩家看到时间连续地一分钟一分钟流逝（07:00→07:01→07:02→……），
+   而不是"一格一格地跳"（例如原来的每 1 秒跳 2 分钟，看起来像跳格子）。
+
+   重新计算的思路：不是简单改一个"每次跳几分钟"的数字，而是把"每一 tick 前进
+   多少分钟"固定为 1（保证连续感），转而调整"多久 tick 一次"（MINUTE_TICK_MS）
+   来控制总体速度——这样时钟显示永远是连续的 +1，只是走得快慢不同。
+
+   - 每天的开始时间固定为 07:00（DAY_START_MINUTES），无论是初次进入还是"再体验一天"。
+   - 时钟按真实 24 小时制显示，23:59 之后正常跳到 00:00（分钟数对 1440 取模）；
+     到达 00:00（跨过午夜）视为这一天结束，直接进入 Today's Memory，不再循环到下一天。
+   - MINUTE_TICK_MS：每隔多少现实毫秒，游戏时间前进 1 分钟（每次固定 +1，连续流逝）。
+     一整天 07:00→24:00 共 1020 游戏分钟；MINUTE_TICK_MS=550 时，不算弹窗停留，
+     走完一整天大约需要现实 9.4 分钟，加上少量事件弹窗停留时间，整体落在
+     "现实约 10 分钟"的目标附近。
+   - 事件节奏不再是固定间隔，而是现实 10~15 秒内随机触发一个新事件（见
+     randomEventGapMinutes，按 MINUTE_TICK_MS 换算成对应的游戏分钟数），
+     既保留"时间在流逝"的感觉，又不会让玩家长时间等待。
+   - 只要有事件弹窗打开，右上角计时器（totalMinutes）整体暂停，等玩家做出选择后才继续走。
+------------------------------------ */
+const DAY_START_MINUTES = 7 * 60;   // 每天固定从 07:00 开始
+const MINUTE_TICK_MS = 550;         // 每 550 毫秒，游戏时间连续 +1 分钟（约现实 9.4 分钟走完一天）
+const MINUTES_PER_REAL_SECOND = 1000 / MINUTE_TICK_MS; // 换算系数，供事件间隔计算使用
+const EVENT_GAP_SECONDS_MIN = 10;   // 事件间隔下限：现实 10 秒
+const EVENT_GAP_SECONDS_MAX = 15;   // 事件间隔上限：现实 15 秒
+
+// 随机算出"下一个事件多少游戏分钟后触发"——对应现实 10~15 秒的随机间隔，
+// 不是固定 10 秒，而是每次都在区间内重新随机
+function randomEventGapMinutes() {
+  const seconds = EVENT_GAP_SECONDS_MIN + Math.random() * (EVENT_GAP_SECONDS_MAX - EVENT_GAP_SECONDS_MIN);
+  return seconds * MINUTES_PER_REAL_SECOND;
+}
+
+let chosenAnimalKey = null;
+let totalMinutes = DAY_START_MINUTES;
+let nextEventTime = DAY_START_MINUTES + randomEventGapMinutes();
+let popupOpen = false;
+
+let todayWeather = EventManager.rollWeather(); // 当日天气，交给 EventManager 决定/记录本局用过的事件 id
+
+let dayLog = [];          // 记录这一天真实发生过的选择片段（含情绪标签），供 Today's Memory 使用
+let usedIdleLines = new Set(); // 今天已经用过的 idle 台词，保证同一句一天最多出现一次
+let tickInterval = null;
+let idleNarrativeTimer = null; // 无事件时的"日常想法"过渡计时器
+let lastThoughtAt = 0;         // 上一次想法气泡更新的时间戳，避免过渡文案打断刚出现的反馈文案
+
+/* ---------- 6. 工具函数 ---------- */
+
+// 按真实 24 小时制格式化时间，分钟数先对 1440 取模，正确模拟 23:59 → 00:00 的跳变
+function formatClock(minutesTotal) {
+  const minutesOfDay = ((minutesTotal % 1440) + 1440) % 1440;
+  const h = Math.floor(minutesOfDay / 60);
+  const m = minutesOfDay % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function currentHour() {
+  const minutesOfDay = ((totalMinutes % 1440) + 1440) % 1440;
+  return Math.floor(minutesOfDay / 60);
+}
+
+// 事件调度只决定"什么时候检查一次"，具体触发哪个事件由 pickNextEvent() 在到点时现场决定
+function scheduleNext(minutesDelay) {
+  nextEventTime = totalMinutes + Math.round(minutesDelay);
+}
+
+// 当前所处的时间段：Morning / Noon / Evening / Night，是游戏时钟自己的概念，
+// 算出来之后作为 context 传给 EventManager.pickNext()，EventManager 不知道
+// "现在几点"，只知道"现在是哪个时段"
+function currentTimePeriod() {
+  const h = currentHour();
+  if (h >= 6 && h < 11) return 'Morning';
+  if (h >= 11 && h < 15) return 'Noon';
+  if (h >= 15 && h < 20) return 'Evening';
+  return 'Night';
+}
+
+/* ---------- 7. 界面更新：氛围化呈现，替代直白数字（DESIGN.md 第6节） ---------- */
+
+function currentPhaseLabel(hour) {
+  if (hour >= 6 && hour < 9) return '清晨';
+  if (hour >= 9 && hour < 12) return '上午';
+  if (hour >= 12 && hour < 14) return '正午';
+  if (hour >= 14 && hour < 17) return '下午';
+  if (hour >= 17 && hour < 20) return '傍晚';
+  return '夜晚';
+}
+
+function updateTopBar() {
+  const hour = currentHour();
+  const icon = (hour >= 6 && hour < 18) ? '☀️' : '🌙';
+  document.getElementById('phaseText').textContent = currentPhaseLabel(hour);
+  document.getElementById('clockText').textContent = `${icon} ${formatClock(totalMinutes)}`;
+
+  const body = document.body;
+  body.classList.remove('time-morning', 'time-day', 'time-evening', 'time-night');
+  if (hour >= 6 && hour < 9) body.classList.add('time-morning');
+  else if (hour >= 9 && hour < 17) body.classList.add('time-day');
+  else if (hour >= 17 && hour < 20) body.classList.add('time-evening');
+  else body.classList.add('time-night');
+}
+
+// 用动物表情 + 氛围光晕 + 浮动节奏来表达状态，而不是进度条数字
+function updateExpression() {
+  const { emotion, physio } = state;
+  const aura = document.getElementById('animalAura');
+  const emojiEl = document.getElementById('animalEmoji');
+  const badge = document.getElementById('expressionBadge');
+
+  aura.classList.remove('aura-calm', 'aura-curious', 'aura-tense');
+  emojiEl.classList.remove('mood-calm', 'mood-curious', 'mood-tense');
+
+  let mood = 'calm';
+  let badgeIcon = '';
+
+  if (emotion.tension >= 55) {
+    mood = 'tense';
+    badgeIcon = '😧';
+  } else if (physio.fatigue >= 70) {
+    mood = 'calm';
+    badgeIcon = '💤';
+  } else if (emotion.curiosity >= 55) {
+    mood = 'curious';
+    badgeIcon = '👀';
+  } else if (emotion.calm >= 60) {
+    mood = 'calm';
+    badgeIcon = '😌';
+  }
+
+  aura.classList.add(`aura-${mood}`);
+  emojiEl.classList.add(`mood-${mood}`);
+  badge.textContent = badgeIcon;
+}
+
+// 状态氛围指示：三个小圆点，只用明暗/大小表达"份量"，不显示任何数字
+function updateStateDots() {
+  const physioLoad = (state.physio.hunger + state.physio.fatigue + (100 - state.physio.safety)) / 3;
+  const emotionLoad = state.emotion.tension * 0.7 + (100 - state.emotion.calm) * 0.3;
+  const socialLevel = (state.social.bond + state.social.trust + state.social.dependence) / 3;
+
+  setDot('dotPhysio', physioLoad);
+  setDot('dotEmotion', emotionLoad);
+  setDot('dotSocial', socialLevel);
+}
+
+function setDot(id, value) {
+  const el = document.getElementById(id);
+  const intensity = clamp(value) / 100;
+  el.style.opacity = (0.2 + intensity * 0.8).toFixed(2);
+  el.style.transform = `scale(${(0.9 + intensity * 0.6).toFixed(2)})`;
+}
+
+function refreshAmbience() {
+  updateTopBar();
+  updateExpression();
+  updateStateDots();
+}
+
+// 显示一段想法气泡（当下感受，现在时）。内容的"更新节奏"完全交给下面的
+// scheduleIdleNarrative() 循环负责，这里只管显示，不再自带"N 秒后自动恢复"
+// 的计时器——避免和 idle 循环产生两套独立计时器互相打架
+function showThought(text) {
+  lastThoughtAt = Date.now();
+  const bubble = document.getElementById('thoughtBubble');
+  bubble.textContent = text;
+  bubble.classList.add('show');
+}
+
+// 根据当前状态判断"心情分类"，用于挑选语气匹配的 idle 台词（不是数值展示，
+// 只是内部用来筛选文案，呼应 DESIGN.md 第6节情绪层）
+function currentMoodBucket() {
+  const { emotion, physio } = state;
+  if (emotion.tension >= 55) return 'tense';
+  if (physio.fatigue >= 70) return 'drowsy';
+  if (emotion.curiosity >= 55) return 'curious';
+  return 'calm';
+}
+
+/* ---------- Event Continuity：最近一次事件对当前表现的持续影响 ----------
+   V1 目前仅由 Idle 使用。如果未来其它系统真正需要，再复用这份共享状态即可，
+   不为了假设中的未来消费者提前设计字段或逻辑。 ------------------------- */
+let eventContinuity = {
+  eventId: null,      // 最近一次事件的 id（暂不使用，低成本预留，方便以后精确呼应"那件事"）
+  emotionTag: null,   // 最近一次事件的情绪标签；null = 当前没有余韵
+  startedAt: 0          // 余韵开始的时间戳（Date.now()）
+};
+
+// 唯一入口：事件结算时调用。设计原则——新事件总是覆盖旧余韵，系统始终只关心
+// "最近发生的那件事"，不累计、不排队、不维护事件历史（动物只活在最近那件事里）。
+function startEventContinuity(eventDef) {
+  eventContinuity = { eventId: eventDef.id, emotionTag: eventDef.emotionTag, startedAt: Date.now() };
+}
+
+// 衰减曲线：按经过的现实秒数分档，返回当前权重（0~100）
+const CONTINUITY_DECAY_CURVE = [
+  { afterSeconds: 20, weight: 100 },
+  { afterSeconds: 40, weight: 70 },
+  { afterSeconds: 60, weight: 40 },
+  { afterSeconds: 90, weight: 10 },
+  { afterSeconds: Infinity, weight: 0 }
+];
+
+function getContinuityWeight() {
+  if (!eventContinuity.emotionTag) return 0;
+  const elapsed = (Date.now() - eventContinuity.startedAt) / 1000;
+  for (const tier of CONTINUITY_DECAY_CURVE) {
+    if (elapsed <= tier.afterSeconds) return tier.weight;
+  }
+  return 0;
+}
+
+// 情绪标签 → 心情分类，供余韵机制换算成 Idle 已有的 mood 档位使用
+const EMOTION_TO_MOOD = {
+  Fear: 'tense', Unease: 'tense', Alertness: 'tense', Wariness: 'tense', Concern: 'tense',
+  Curiosity: 'curious', Surprise: 'curious', Expectation: 'curious',
+  Relief: 'calm', Comfort: 'calm', Serenity: 'calm', Happiness: 'calm', Joy: 'calm', Disappointment: 'calm',
+  Drowsiness: 'drowsy'
+};
+
+// 通用的"按权重抽一个"工具函数。V1 目前仅由 Idle 使用。
+function pickWeighted(weightedList) {
+  const total = weightedList.reduce((sum, x) => sum + x.w, 0);
+  let r = Math.random() * total;
+  for (const entry of weightedList) {
+    if (r < entry.w) return entry.item;
+    r -= entry.w;
+  }
+  return weightedList[weightedList.length - 1].item;
+}
+
+// 从 IDLE_NARRATIVE 里按"动物 + 当前时间段 + 今天没说过"筛候选，再按"真实心情 +
+// 余韵心情共同贡献的权重"加权抽一句。时间段永远严格匹配；心情筛选完全没有
+// 候选时才放宽，说明这个动物今天的台词已经说完了。
+function pickIdleNarrative() {
+  const pool = IDLE_NARRATIVE[chosenAnimalKey] || [];
+  const period = currentTimePeriod();
+  const realMood = currentMoodBucket();
+  const continuityWeight = getContinuityWeight();
+  const continuityMood = continuityWeight > 0 ? EMOTION_TO_MOOD[eventContinuity.emotionTag] : null;
+
+  function periodOk(item) {
+    return item.period === 'any' || item.period.includes(period);
+  }
+
+  // 真实心情和余韵心情共同贡献权重，而不是互斥二选一：如果两者指向同一个
+  // mood 档位，权重会叠加（"情绪被最近的事强化了"）；如果真实心情已经变了、
+  // 余韵还没散尽，两边的候选会一起参与抽样，直到余韵权重降到 0。
+  function weightedCandidates() {
+    const list = [];
+    pool.forEach(item => {
+      if (usedIdleLines.has(item.text) || !periodOk(item)) return;
+      let moodWeight = 0;
+      if (item.mood === 'any') moodWeight += 100;
+      if (item.mood === realMood) moodWeight += 100;
+      if (continuityMood && item.mood === continuityMood) moodWeight += continuityWeight;
+      if (moodWeight <= 0) return;
+      list.push({ item, w: (IDLE_FREQ_WEIGHT[item.freq] || IDLE_FREQ_WEIGHT.common) * moodWeight });
+    });
+    return list;
+  }
+
+  let weighted = weightedCandidates();
+  if (!weighted.length) {
+    weighted = pool
+      .filter(item => !usedIdleLines.has(item.text) && periodOk(item))
+      .map(item => ({ item, w: IDLE_FREQ_WEIGHT[item.freq] || IDLE_FREQ_WEIGHT.common }));
+  }
+  if (!weighted.length) return null;
+
+  const picked = pickWeighted(weighted);
+  usedIdleLines.add(picked.text);
+  return picked.text;
+}
+
+// 换一句新的日常想法；如果今天该动物的台词已经说完了，用一句不参与"只说一次"
+// 限制的中性兜底文案，避免气泡空着
+function refreshIdleThought() {
+  const text = pickIdleNarrative() || '静静地待着~';
+  showThought(text);
+}
+
+// 无事件时的"日常想法"循环：每隔 3.5~6 秒，在没有更"新鲜"的想法文案时，
+// 换一句新的 idle 台词，让画面在事件间隙依然有细微的变化，传达时间在流动
+function scheduleIdleNarrative() {
+  const delay = 3500 + Math.random() * 2500; // 3.5~6 秒
+  idleNarrativeTimer = setTimeout(() => {
+    if (!popupOpen && chosenAnimalKey && Date.now() - lastThoughtAt >= 3000) {
+      refreshIdleThought();
+    }
+    scheduleIdleNarrative();
+  }, delay);
+}
+
+function stopIdleNarrativeLoop() {
+  if (idleNarrativeTimer) clearTimeout(idleNarrativeTimer);
+  idleNarrativeTimer = null;
+}
+
+/* ---------- 8. 事件弹窗逻辑：世界层→感知层→选择层 ---------- */
+
+function openModal() {
+  popupOpen = true;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+  document.getElementById('eventModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  popupOpen = false;
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('eventModal').classList.add('hidden');
+}
+
+// 打开一个事件：只展示"感知层"文案（按当前动物物种），不出现任何人类概念标签
+function openEventModal(eventId) {
+  const eventDef = EventManager.findById(eventId);
+  const perceptionText = eventDef.perception[chosenAnimalKey];
+
+  document.getElementById('eventDesc').textContent = perceptionText;
+
+  const optionsBox = document.getElementById('eventOptions');
+  optionsBox.innerHTML = eventDef.choices.map((c, idx) => `
+    <button class="option-btn" data-idx="${idx}">${c.label}</button>
+  `).join('');
+
+  optionsBox.querySelectorAll('.option-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleChoice(eventId, Number(btn.dataset.idx)));
+  });
+
+  openModal();
+}
+
+// 处理选择层结果：更新情绪层/生理层/社会层状态（反馈层），把这个事件标记为
+// "本局已用过"，记录一条 Today's Memory 片段，并安排下一次事件检查的时间点
+function handleChoice(eventId, idx) {
+  closeModal();
+  const eventDef = EventManager.findById(eventId);
+  const choice = eventDef.choices[idx];
+
+  applyDelta(choice.apply || {});
+  showThought(choice.feedback);
+
+  EventManager.markUsed(eventId);
+  dayLog.push({ name: eventDef.name, memory: choice.feedback, emotionTag: eventDef.emotionTag });
+  startEventContinuity(eventDef);
+
+  scheduleNext(randomEventGapMinutes());
+  refreshAmbience();
+}
+
+/* ---------- 9. Today's Memory：拼接真实发生过的片段，而不是匹配一个结局标签 ---------- */
+
+// 物种基调：不同动物的"高光时刻"更容易被哪类情绪定义，呼应 ANIMALS.md 的"结局倾向"
+// （猫：好奇/独自观察；狗：羁绊/热闹相伴；兔子：安全感/紧张后的平复）。
+// 只在多个"全天唯一一次"的情绪标签里做优先级排序，不是新增文本句式。
+const ANIMAL_MEMORY_TONE = {
+  cat: ['Curiosity', 'Wariness', 'Comfort'],
+  dog: ['Relief', 'Happiness', 'Concern'],
+  rabbit: ['Relief', 'Serenity', 'Fear']
+};
+
+function buildMemory() {
+  const closingLine = ENDING_CONFIG[dayEndingType].closingLine;
+
+  // dayLog 现在也会混入 Ending Framework 写入的 { type: 'ending', ... } 记录
+  // （见 beginEnding）。这里只挑出真正的事件片段来拼回忆正文，Ending 记录本身
+  // 先不消费——保持 buildMemory() 的输出和引入统一记录之前完全一致；以后如果
+  // 想让回忆正文也读取"这一天是怎么结束的"，直接在这里读 dayLog 里最后一条
+  // type==='ending' 的记录即可，不需要改数据结构。
+  const realEntries = dayLog.filter(e => e.type !== 'ending');
+
+  if (realEntries.length === 0) {
+    return `今天，\n你大部分时间都安安静静地待着。\n\n${closingLine}`;
+  }
+
+  // 统计当天每个情绪标签出现的次数（EVENTS.md 的"情绪标签"字段），
+  // 用来生成"高频情绪"整体基调句、以及"高光时刻"单点句，让回忆不只是数值判断
+  const tagCounts = {};
+  realEntries.forEach(e => { tagCounts[e.emotionTag] = (tagCounts[e.emotionTag] || 0) + 1; });
+
+  const fragments = [];
+
+  const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+  if (sortedTags.length && sortedTags[0][1] >= 2) {
+    const topTag = sortedTags[0][0];
+    fragments.push(`你一直在${EventManager.getEmotionLabel(topTag)}这个世界。`);
+  }
+
+  // 全天只出现一次的情绪标签，当作"独一无二"的高光时刻；如果有多个候选，
+  // 优先选和当前物种基调最贴近的一个（DESIGN.md 第10.3节要求物种/状态参与语气判断）
+  const uniqueEntries = realEntries.filter(e => tagCounts[e.emotionTag] === 1);
+  const tonePreference = ANIMAL_MEMORY_TONE[chosenAnimalKey] || [];
+  const toneMatch = uniqueEntries.find(e => tonePreference.includes(e.emotionTag));
+  const uniqueEntry = toneMatch || uniqueEntries[0];
+  if (uniqueEntry) {
+    fragments.push(`你最${EventManager.getEmotionLabel(uniqueEntry.emotionTag)}的时刻，是${uniqueEntry.name}。`);
+  }
+
+  // 社会层：如果这一天羁绊明显加深，补一句体现关系变化的感受（DESIGN.md 第10.3节
+  // 明确要求社会层参与回忆语气，而不只是情绪标签）。只在数值明显变化时才加一句，
+  // 是如实描述一种感受，不是"因为羁绊高所以给你加分"式的评判。
+  if (state.social.bond >= 50) {
+    fragments.push('你和他之间，好像又近了一些。');
+  }
+
+  // 具体片段：这一天真实发生的第一件事和最后一件事，保留"发生过什么"的落地细节
+  const first = realEntries[0];
+  const last = realEntries[realEntries.length - 1];
+  [first, last].forEach(e => {
+    if (!fragments.includes(e.memory)) fragments.push(e.memory);
+  });
+
+  return `今天，\n${fragments.join('\n\n')}\n\n${closingLine}`;
+}
+
+/* ---------- Ending Framework：Day Ending 的统一出口 ----------
+   Normal（到达午夜）和 Death（极小概率的意外）都从 beginEnding() 进入同一套流程，
+   不会立刻切到 Today's Memory，而是先冻结画面、留一段"余韵"时间，再真正收尾。
+   以后要加 Happy Ending / Secret Ending，只需要在 ENDING_CONFIG 里加一条配置，
+   不需要新增新的收尾流程。 ------------------------------------------------ */
+let dayEndingType = 'Normal';
+let endingStarted = false; // 防止同一天内重复触发收尾
+
+const ENDING_CONFIG = {
+  Normal: {
+    afterglowMs: 0, // 保持和之前完全一样的即时收尾节奏，不引入额外停顿
+    memoryLead: '🌙 夜深了，困意渐渐涌了上来……',
+    closingLine: '今天，\n也是很好的一天。'
+  },
+  Death: {
+    afterglowMs: 4000, // 3~5 秒的余韵停留，画面渐渐静下来，不立刻跳转
+    memoryLead: '🌙 一切，渐渐安静了下来……',
+    closingLine: '最后，\n世界安静了下来。'
+  }
+};
+
+// 结局开始：冻结时间与交互、显示最后一句感知文案（可为空）、画面渐渐静下来，
+// 停留 ENDING_CONFIG 里配置的时长后再真正收尾。同时把这次结局作为一条统一的
+// 记录写进 dayLog（type: 'ending'），而不是只存在 dayEndingType 这个运行时变量里——
+// 这样以后要做 Timeline / Statistics / Replay 之类的系统，只需要遍历 dayLog，
+// 不需要写"if (dayEndingType === 'Death') ..."这类特判逻辑。
+// buildMemory() 目前选择忽略这条记录（见该函数），不影响现有回忆文案的生成方式。
+function beginEnding(endingType, leadThought, endingId) {
+  if (endingStarted) return;
+  endingStarted = true;
+  dayEndingType = endingType;
+  // gameMinute / realTimestamp 目前只是记录，不参与任何判定或文案逻辑——
+  // 为以后 Timeline / Calendar / Replay / Statistics 这类系统预留（比如"结局
+  // 发生在当天第几分钟""平均在什么时间结束一天"），现在不消费这两个字段。
+  dayLog.push({
+    type: 'ending',
+    ending: endingType,
+    id: endingId || null,
+    text: leadThought || null,
+    gameMinute: totalMinutes,
+    realTimestamp: Date.now()
+  });
+
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = null;
+  stopIdleNarrativeLoop();
+  popupOpen = true; // 复用"弹窗打开"的语义冻结画面交互，不新增一把专门的锁
+
+  if (leadThought) showThought(leadThought);
+  document.getElementById('gameScreen').classList.add('ending-fade');
+
+  setTimeout(() => finishDay(endingType), ENDING_CONFIG[endingType].afterglowMs);
+}
+
+// 真正的收尾：写入 Today's Memory、切换到回忆屏幕
+function finishDay(endingType) {
+  EventManager.rolloverDay(); // 供下一局做跨局多样性参考
+
+  const cfg = ENDING_CONFIG[endingType];
+  document.getElementById('gameScreen').classList.add('hidden');
+  document.getElementById('gameScreen').classList.remove('ending-fade');
+  document.getElementById('memoryLead').textContent = cfg.memoryLead;
+  document.getElementById('memoryText').textContent = buildMemory();
+  document.getElementById('memoryScreen').classList.remove('hidden');
+}
+
+/* ---------- Ending Framework：Death（Alternate Ending 的一种实现）判定 ----------
+   不经过 EventManager，独立于普通事件之外的极小概率判定，挂在和普通事件同一个
+   检查节奏上（每次到点检查要不要出事件时，先掷一次）。基础概率很低；环境/状态
+   只带来很轻微的浮动，且几项加成互相封顶，避免玩家把它归因成"这次选错了"。
+
+   所有和判定相关的数字都集中在 DEATH_CONFIG 里，以后调参/查阅只改这一处，
+   不需要在文件里 grep 散落的常量。 */
+const DEATH_CONFIG = {
+  baseChance: 0.0015,           // 每次事件检查节点的基础概率，约 0.15%
+  graceMinutes: 60,             // 苏醒后的宽限游戏分钟数，此期间内不判定，避免刚睁眼就结束的突兀感
+  safetyThreshold: 25,          // 安全感低于此值，触发轻微加成
+  safetyBonus: 0.2,
+  tensionThreshold: 70,         // 紧张值高于此值，触发轻微加成
+  tensionBonus: 0.15,
+  badWeather: ['Rain', 'Wind'], // 触发轻微加成的天气类型
+  weatherBonus: 0.15,
+  multiplierCap: 1.5            // 以上加成叠加后的总封顶，保证影响始终"轻微"
+};
+
+function deathChanceMultiplier() {
+  let mult = 1;
+  if (state.physio.safety < DEATH_CONFIG.safetyThreshold) mult += DEATH_CONFIG.safetyBonus;
+  if (state.emotion.tension > DEATH_CONFIG.tensionThreshold) mult += DEATH_CONFIG.tensionBonus;
+  if (DEATH_CONFIG.badWeather.includes(todayWeather)) mult += DEATH_CONFIG.weatherBonus;
+  return Math.min(mult, DEATH_CONFIG.multiplierCap);
+}
+
+function shouldTriggerDeathEnding() {
+  if (totalMinutes - DAY_START_MINUTES < DEATH_CONFIG.graceMinutes) return false;
+  return Math.random() < DEATH_CONFIG.baseChance * deathChanceMultiplier();
+}
+
+// DEATH_ENDINGS 现在是数组（为以后同一动物追加多条内容预留），这里按动物查找
+function findDeathEnding(animal) {
+  return DEATH_ENDINGS.find(d => d.animal === animal);
+}
+
+/* ---------- 10. 主计时循环 ---------- */
+
+function gameTick() {
+  // 只要有事件弹窗打开，右上角计时器整体暂停：这一 tick 什么都不做，
+  // 等玩家做出选择、弹窗关闭之后，时间才会继续往前走。
+  if (popupOpen) return;
+
+  totalMinutes += 1; // 连续 +1 分钟；速度由 tick 频率（MINUTE_TICK_MS）决定，不靠加大步长
+
+  // 每经过游戏内 1 小时，状态自然产生一点漂移（生理层持续累积，情绪层缓慢平复）
+  if (totalMinutes % 60 === 0) {
+    state.physio.hunger = clamp(state.physio.hunger + 2);
+    state.physio.fatigue = clamp(state.physio.fatigue + 2);
+    state.physio.safety = clamp(state.physio.safety + 1);
+    state.emotion.calm = clamp(state.emotion.calm - 1);
+    state.emotion.tension = clamp(state.emotion.tension - 1);
+  }
+
+  // 时间跳过 23:59 跳到 00:00（跨过午夜）：单日体验到此结束，不再跨天循环，
+  // 下一次开始（再体验一天 / 换动物）会重新固定从 07:00 开始。
+  if (totalMinutes >= 1440) {
+    beginEnding('Normal', null);
+    return;
+  }
+
+  // 检查是否到达下一次预定事件的时间；到点后先判定极小概率的 Death Ending，
+  // 没有触发的话再交给 EventManager 现场决定选哪个普通事件——Death Ending
+  // 完全独立于 EventManager 之外，不经过它的筛选/加权/抽样逻辑
+  if (totalMinutes >= nextEventTime) {
+    if (shouldTriggerDeathEnding()) {
+      const deathEnding = findDeathEnding(chosenAnimalKey);
+      beginEnding('Death', deathEnding.perception, deathEnding.id);
+      return;
+    }
+
+    const eventDef = EventManager.pickNext({
+      animal: chosenAnimalKey,
+      timePeriod: currentTimePeriod(),
+      weather: todayWeather,
+      state
+    });
+    if (eventDef) {
+      openEventModal(eventDef.id);
+    } else {
+      // 这一刻没有匹配的候选事件（可能是当前时段/天气暂时没有剩余内容），
+      // 不代表以后也没有——按正常节奏稍后再检查一次，而不是永久放弃调度
+      // （bug 记录：这里原来写的是 nextEventTime = Infinity，会导致一旦某次
+      //  没找到候选，全天后续时段的事件全部不再触发，是"下午之后几乎没有
+      //  事件"的真正原因）
+      nextEventTime = totalMinutes + randomEventGapMinutes();
+    }
+  }
+
+  refreshAmbience();
+}
+
+/* ---------- 11. 初始化与启动流程 ---------- */
+
+document.querySelectorAll('.animal-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.animal-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    chosenAnimalKey = card.dataset.animal;
+    document.getElementById('startBtn').disabled = false;
+  });
+});
+
+// 点击"成为它"：进入身份转换过渡界面，而不是直接进入游戏
+document.getElementById('startBtn').addEventListener('click', () => {
+  if (!chosenAnimalKey) return;
+
+  document.getElementById('transitionText').textContent = TRANSITION_TEXT[chosenAnimalKey];
+  document.getElementById('transitionAltText').classList.add('hidden');
+  document.getElementById('transitionAltText').textContent = '';
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('transitionScreen').classList.remove('hidden');
+});
+
+// 点击"不睁开"：开场隐藏玩法，留在当前页面，不进入动物体验
+document.getElementById('notWakeBtn').addEventListener('click', () => {
+  document.getElementById('transitionAltText').textContent = TRANSITION_ALT_TEXT[chosenAnimalKey];
+  document.getElementById('transitionAltText').classList.remove('hidden');
+});
+
+// 点击"睁开眼睛"：正式进入这一天（如果之前点过"不睁开"，这里会让那句文案消失，
+// 玩家可以随时通过重新睁眼开始真正的一天）
+document.getElementById('wakeBtn').addEventListener('click', () => {
+  document.getElementById('transitionAltText').classList.add('hidden');
+  document.getElementById('transitionAltText').textContent = '';
+
+  document.getElementById('animalEmoji').firstChild.textContent = ANIMALS[chosenAnimalKey].emoji;
+
+  document.getElementById('transitionScreen').classList.add('hidden');
+  document.getElementById('gameScreen').classList.remove('hidden');
+
+  refreshAmbience();
+  showThought(DAY_START_THOUGHTS[chosenAnimalKey]); // "一天开始"文案，只在这一刻出现一次
+
+  tickInterval = setInterval(gameTick, MINUTE_TICK_MS);
+  stopIdleNarrativeLoop();
+  scheduleIdleNarrative();
+});
+
+// 重置所有运行时状态，回到清晨，供"再体验一天 / 换一只动物"使用
+function resetRuntimeState() {
+  state = {
+    physio:  { hunger: 20, fatigue: 15, safety: 75 },
+    emotion: { curiosity: 25, calm: 70, tension: 10 },
+    social:  { bond: 25, trust: 40, dependence: 15 }
+  };
+  totalMinutes = DAY_START_MINUTES;
+  nextEventTime = DAY_START_MINUTES + randomEventGapMinutes();
+  popupOpen = false;
+  todayWeather = EventManager.rollWeather();
+  EventManager.resetForNewDay();
+  dayLog = [];
+  usedIdleLines = new Set();
+  eventContinuity = { eventId: null, emotionTag: null, startedAt: 0 };
+  dayEndingType = 'Normal';
+  endingStarted = false;
+}
+
+document.getElementById('replayBtn').addEventListener('click', () => {
+  resetRuntimeState();
+  document.getElementById('memoryScreen').classList.add('hidden');
+  document.getElementById('transitionText').textContent = TRANSITION_TEXT[chosenAnimalKey];
+  document.getElementById('transitionAltText').classList.add('hidden');
+  document.getElementById('transitionAltText').textContent = '';
+  document.getElementById('transitionScreen').classList.remove('hidden');
+});
+
+document.getElementById('switchBtn').addEventListener('click', () => {
+  resetRuntimeState();
+  chosenAnimalKey = null;
+  document.querySelectorAll('.animal-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('memoryScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+});
+</script>
+
+</body>
+</html>
